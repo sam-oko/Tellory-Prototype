@@ -560,6 +560,14 @@
     .left{order:2}
     .stagecol{width:100%}
     .screen{aspect-ratio:9/15}
+    /* the time/stage frame is built for a wide desktop screen - stack it
+       vertically on a phone so the year, timeline and hours never collide */
+    .timeframe{grid-template-columns:1fr; gap:8px; margin:8px; padding:10px 12px}
+    .tf-year{font-size:22px} .tf-hrs .num{font-size:22px}
+    .tf-hrs{text-align:left}
+    .seg{padding:0 6px 13px}
+    /* give the narrow phone screen more usable width for the chaos rail */
+    .chaos-main{grid-template-columns:34% 1fr}
 
     /* tame the viewport-height typography that explodes on tall screens */
     #eyebrow{font-size:34px; margin-bottom:8px}
