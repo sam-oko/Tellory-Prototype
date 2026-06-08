@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tellory · From the Maze to the Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#F4F1EC;--ink:#3C3836;--ink-2:#5a534f;--paper:#FBF8F3;--line:#E5DED2;--crimson:#A91E24;--crimson-2:#7a1418;--gold:#B7892E;--soft:#EFE7D8;--alarm:#D6332B;--warn:#E2A93A;--calm:#7C8B73;--good:#3F7A4E}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body{min-height:100vh;display:flex;flex-direction:column}
+  body.chaos-mode{overflow:hidden;height:100vh}
+  body.solution-mode{overflow-x:hidden;overflow-y:auto}
+  .topbar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;background:#FBF8F3;border-bottom:1px solid var(--line);z-index:50;position:sticky;top:0;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-family:Fraunces,serif;font-size:20px;letter-spacing:.02em}
+  .brand .dot{width:9px;height:9px;background:var(--crimson);border-radius:50%}
+  .seg{display:flex;gap:6px;align-items:center}
+  .seg .s{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);font-weight:500;background:#fff;transition:all .3s;cursor:pointer;white-space:nowrap}
+  .seg .s.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .seg .s.done{background:var(--soft);color:var(--ink);border-color:var(--soft)}
+  .phases{display:none;gap:6px;align-items:center}
+  body.chaos-mode .phases{display:flex}
+  body.chaos-mode .seg{display:none}
+  .phase{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);transition:all .4s;font-weight:500;background:#fff;white-space:nowrap}
+  .phase.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .phase.done{background:var(--soft);color:var(--ink);border-color:var(--soft)}
+  .phase em{font-style:normal;color:var(--crimson);margin-left:6px;font-weight:700}
+  .phase.active em{color:var(--gold)}
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .btn{font:600 12px Inter;letter-spacing:.1em;text-transform:uppercase;padding:9px 16px;border-radius:999px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;transition:all .15s}
+  .btn:hover{background:var(--crimson);border-color:var(--crimson)}
+  .btn.ghost{background:transparent;color:var(--ink)}
+  .btn.ghost:hover{background:var(--soft);color:var(--ink);border-color:var(--ink)}
+  .speed{display:flex;gap:0;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:#fff}
+  .speed b{padding:8px 12px;font:600 10px Inter;letter-spacing:.16em;cursor:pointer;color:var(--ink-2)}
+  .speed b.on{background:var(--ink);color:#fff}
+  body:not(.chaos-mode) .speed,body:not(.chaos-mode) #pauseBtn{display:none}
+  .act{display:none}.act.on{display:block}
+  #act1{flex:1;position:relative;overflow:hidden;background:radial-gradient(900px 600px at 20% 100%,rgba(169,30,36,.06),transparent 60%),radial-gradient(700px 500px at 90% 20%,rgba(183,137,46,.06),transparent 60%),var(--bg);display:flex;flex-direction:column}
+  .stage{flex:1;position:relative;overflow:hidden}
+  .hud{position:absolute;left:28px;top:28px;z-index:40;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+  .hours-card{pointer-events:auto;background:rgba(60,56,54,.96);color:#fff;border-radius:14px;padding:14px 18px;min-width:220px;box-shadow:0 24px 50px -22px rgba(60,56,54,.6)}
+  .hours-card .label{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);font-weight:600}
+  .hours-card .big{font-family:Fraunces,serif;font-size:54px;line-height:1;margin-top:2px;display:flex;align-items:baseline;gap:6px}
+  .hours-card .big .h{color:var(--gold);font-size:18px;font-family:Inter;letter-spacing:.2em;font-weight:500}
+  .hours-card .sub{font-size:11px;color:#cdc4bb;margin-top:6px;line-height:1.4}
+  .hours-card .sub b{color:#fff}
+  .domains{position:absolute;right:28px;top:28px;z-index:40;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:14px;padding:14px;width:240px;box-shadow:0 12px 30px -16px rgba(60,56,54,.25);pointer-events:auto}
+  .domains h4{margin:0 0 10px;font:600 10px Inter;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-2)}
+  .dom{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11.5px}
+  .dom .ic{font-size:13px;width:18px;text-align:center}
+  .dom .lbl{flex:1;color:var(--ink)}
+  .dom .bar{flex:0 0 80px;height:5px;background:var(--soft);border-radius:3px;overflow:hidden;position:relative}
+  .dom .bar i{position:absolute;left:0;top:0;bottom:0;width:0%;background:var(--crimson);transition:width .6s ease}
+  .dom .n{font:600 10px ui-monospace,Menlo,monospace;color:var(--ink-2);width:30px;text-align:right}
+  .hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 30px;z-index:30;transition:opacity .5s}
+  .hint.gone{opacity:0;pointer-events:none}
+  .hint .eyebrow{font-family:Fraunces,serif;font-size:clamp(54px, 6.5vw, 96px);letter-spacing:-.02em;text-transform:none;color:var(--crimson);font-weight:500;margin-bottom:14px;line-height:1;font-style:italic}
+  .hint h1{font-family:Fraunces,serif;font-weight:400;font-size:74px;line-height:1.02;letter-spacing:-0.022em;margin:0 0 16px;max-width:980px}
+  .hint h1 em{font-style:italic;color:var(--crimson)}
+  .hint p{font-size:17px;line-height:1.55;color:var(--ink-2);max-width:760px;margin:18px 0 28px}
+  .hint p em{font-style:italic;color:var(--crimson);font-weight:500}
+  .hint .bigtitle-pre{font-family:Fraunces,serif;font-weight:400;font-size:clamp(20px, 2.2vw, 30px);color:var(--ink);letter-spacing:-.005em;font-style:italic;margin:0 0 4px}
+  .hint .bignum{display:flex;align-items:baseline;justify-content:center;gap:18px;margin:0 0 6px;line-height:.9}
+  .hint .bignum .n{font-family:Fraunces,serif;font-weight:300;font-size:clamp(180px, 22vw, 320px);color:var(--crimson);letter-spacing:-.045em;line-height:.85}
+  .hint .bignum .u{font-family:Inter,sans-serif;font-size:clamp(22px, 2.4vw, 36px);font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink)}
+  .hint .bigsub{font-family:Fraunces,serif;font-weight:400;font-size:clamp(24px, 2.6vw, 38px);color:var(--ink);max-width:920px;line-height:1.2;margin:4px 0 0;letter-spacing:-.01em}
+  .hint .bigsub em{font-style:italic;color:var(--crimson)}
+  @keyframes ctaPulse{0%{box-shadow:0 0 0 0 rgba(169,30,36,.55)}70%{box-shadow:0 0 0 16px rgba(169,30,36,0)}100%{box-shadow:0 0 0 0 rgba(169,30,36,0)}}
+  #startBtn,#solBtn,#nextBtn,#gen{animation:ctaPulse 2s ease-out infinite}
+  #solBtn{padding:22px 44px;font-size:22px;letter-spacing:.02em;text-transform:none;font-family:Fraunces,serif;font-weight:500;background:var(--crimson);border:none;border-radius:999px;color:#fff;box-shadow:0 18px 40px -16px rgba(169,30,36,.7)}
+  #solBtn:hover{background:#c8262c;transform:translateY(-2px)}
+  #startBtn:hover,#solBtn:hover,#nextBtn:hover,#gen:hover{animation-play-state:paused}
+  .big-btn{display:inline-flex;align-items:center;gap:12px;background:var(--ink);color:#fff;padding:16px 26px;border-radius:999px;border:none;cursor:pointer;font:600 13px Inter;letter-spacing:.16em;text-transform:uppercase;transition:transform .15s,background .2s}
+  .big-btn:hover{background:var(--crimson);transform:translateY(-1px)}
+  .big-btn .arr{width:22px;height:22px;border-radius:50%;background:var(--crimson);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:12px;transition:background .2s}
+  .big-btn:hover .arr{background:#fff;color:var(--crimson)}
+  .el{position:absolute;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:11.5px;color:var(--ink);box-shadow:0 6px 14px -8px rgba(60,56,54,.3);will-change:transform,opacity;animation:popIn .35s ease both;max-width:280px;line-height:1.35}
+  @keyframes popIn{from{opacity:0;transform:scale(.85) translateY(8px)}to{opacity:1;transform:scale(1)}}
+  .el.tab{display:inline-flex;align-items:center;gap:8px;padding:6px 10px 6px 8px;background:#fff;border-radius:999px;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+  .el.tab::before{content:"";width:10px;height:10px;border-radius:50%;background:#E5DED2;flex:0 0 auto}
+  .el.tab.hot::before{background:var(--crimson);animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+  .el.appt{border-left:3px solid var(--crimson);background:#fff;font-size:11.5px;padding:9px 12px}
+  .el.appt b{display:block;color:var(--crimson);font-weight:600;font-size:11.5px;margin-bottom:2px}
+  .el.appt .meta{color:var(--ink-2);font-size:10px;margin-top:4px;letter-spacing:.04em}
+  .el.quote{background:#FBF8F3;border:1px solid var(--line);max-width:300px;font-family:Fraunces,serif;font-size:14px;line-height:1.25;padding:10px 14px;font-style:italic}
+  .el.quote .by{display:block;font:500 9.5px Inter;letter-spacing:.16em;text-transform:uppercase;font-style:normal;color:var(--ink-2);margin-top:6px}
+  .el.quote.contra{border-color:var(--alarm);background:#fff}
+  .el.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:10.5px;font-weight:500;letter-spacing:.04em}
+  .el.pill::before{content:"";display:inline-block;width:8px;height:14px;border-radius:2px;background:var(--gold);flex:0 0 auto}
+  .el.pill.r::before{background:var(--crimson)}.el.pill.b::before{background:var(--ink)}.el.pill.g::before{background:var(--calm)}
+  .el.alarm{background:var(--alarm);color:#fff;border:none;font-size:11px;font-weight:600;letter-spacing:.04em;padding:8px 12px;animation:shake .35s ease,popIn .35s ease both}
+  @keyframes shake{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+  .phaseFlash{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:35;font-family:Fraunces,serif;font-size:140px;font-weight:300;letter-spacing:-.04em;color:var(--ink);opacity:0;pointer-events:none;text-align:center}
+  .phaseFlash.show{animation:flashTitle 2.4s ease both}
+  @keyframes flashTitle{0%{opacity:0;transform:translate(-50%,-50%) scale(.9)}15%{opacity:1;transform:translate(-50%,-50%) scale(1)}80%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.05)}}
+  .scrubber{flex:0 0 auto;display:flex;align-items:center;gap:18px;padding:18px 28px 26px;background:#FBF8F3;border-top:1px solid var(--line);z-index:50;flex-wrap:wrap}
+  .scrubber .label{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-2);font-weight:600;min-width:60px}
+  .scrubber .track{flex:1;position:relative;height:24px}
+  .scrubber .rail{position:absolute;left:0;right:0;top:50%;height:4px;background:var(--soft);border-radius:3px;transform:translateY(-50%)}
+  .scrubber .fill{position:absolute;left:0;top:50%;height:4px;border-radius:3px;background:linear-gradient(90deg,var(--crimson),var(--gold));transform:translateY(-50%);width:0%;transition:width .35s linear}
+  .scrubber .mark{position:absolute;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--ink-2);font-size:0}
+  .scrubber .mark::after{content:attr(data-l);position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;font-family:Inter;font-weight:600}
+  .scrubber .mark#mMeno::after{top:30px}
+  .scrubber .mark#mPost::after{transform:translateX(-100%)}
+  .scrubber .mark.done{border-color:var(--crimson);background:var(--crimson)}
+  .scrubber .yrs{font:600 11px ui-monospace,Menlo,monospace;color:var(--ink);min-width:88px;text-align:right}
+  .reveal{position:absolute;inset:0;background:rgba(60,56,54,.97);color:#fff;display:flex;align-items:center;justify-content:center;z-index:60;opacity:0;pointer-events:none;transition:opacity .8s ease}
+  .reveal.on{opacity:1;pointer-events:auto}
+  .reveal .box{max-width:880px;text-align:center;padding:40px}
+  .reveal .pre{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:18px}
+  .reveal h2{font-family:Fraunces,serif;font-weight:300;font-size:128px;line-height:.95;margin:0;letter-spacing:-.03em}
+  .reveal h2 em{font-style:italic;color:var(--gold)}
+  .reveal .unit{font-size:18px;color:#cdc4bb;letter-spacing:.18em;text-transform:uppercase;margin-top:4px}
+  .reveal .breakdown{display:flex;justify-content:center;gap:30px;margin-top:38px;flex-wrap:wrap}
+  .reveal .b{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:18px 22px;min-width:170px}
+  .reveal .b .ph{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:600}
+  .reveal .b .v{font-family:Fraunces,serif;font-size:36px;margin-top:6px;line-height:1}
+  .reveal .b .d{font-size:11.5px;color:#cdc4bb;margin-top:6px}
+  .reveal .equiv{margin-top:30px;font-size:14.5px;color:#e3dccf;line-height:1.6;max-width:640px;margin-left:auto;margin-right:auto}
+  .reveal .equiv b{color:var(--gold);font-weight:500}
+  .reveal .actions{margin-top:32px;display:flex;gap:14px;justify-content:center}
+  .solwrap{max-width:1240px;margin:0 auto;padding:14px 28px 28px}
+  .interstitial{padding:8px 28px 20px;text-align:center;max-width:1080px;margin:0 auto}
+  .interstitial .eyebrow{font-family:Fraunces,serif;font-size:clamp(54px, 6.5vw, 96px);letter-spacing:-.02em;text-transform:none;color:var(--crimson);font-weight:500;margin-bottom:8px;line-height:1;font-style:italic}
+  .interstitial h1{font-family:Fraunces,serif;font-weight:400;font-size:clamp(36px, 4.4vw, 56px);line-height:1.05;letter-spacing:-.02em;margin:0 0 10px}
+  .interstitial h1 em{font-style:italic;color:var(--crimson)}
+  .interstitial p{font-size:17px;color:var(--ink-2);max-width:680px;margin:0 auto;line-height:1.55}
+  .act2-grid{display:grid;grid-template-columns:.85fr 1.15fr;gap:36px;align-items:stretch;margin-top:20px}
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:28px}
+  .panel h2{font-family:Fraunces,serif;font-weight:400;font-size:30px;margin:0 0 6px;letter-spacing:-0.01em}
+  .panel .ph2-tag{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--crimson);font-weight:600;margin-bottom:14px}
+  .field{margin-top:18px}
+  .field label{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+  input[type=text]{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 14px;background:#fff;font:500 15px Inter;color:var(--ink)}
+  input:focus{outline:none;border-color:var(--crimson)}
+  .age-row{display:flex;gap:14px;align-items:center}
+  .age-row input[type=range]{flex:1}
+  .age-pill{font-family:Fraunces,serif;font-size:22px;min-width:54px;text-align:center;color:var(--crimson)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:12.5px;cursor:pointer;color:var(--ink);transition:all .15s;user-select:none}
+  .chip:hover{border-color:var(--crimson)}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .gen-btn{margin-top:24px;width:100%;background:var(--crimson);color:#fff;border:none;padding:14px;border-radius:10px;font:600 13px Inter;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .2s}
+  .gen-btn:hover{background:var(--crimson-2)}
+  .gen-btn:disabled{background:var(--line);color:var(--ink-2);cursor:not-allowed}
+  .blueprint{background:var(--ink);color:#fff;border-radius:16px;padding:14px 28px 28px;position:relative;overflow:hidden;min-height:480px;display:flex;flex-direction:column}
+  .blueprint::before{content:"";position:absolute;inset:-50% -10% auto auto;width:60%;aspect-ratio:1;background:radial-gradient(circle,rgba(183,137,46,.18),transparent 60%);pointer-events:none}
+  .blueprint .bp-tag{font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);font-weight:600;margin:0 0 14px}
+  .blueprint h3{font-family:Fraunces,serif;font-weight:400;font-size:clamp(20px, 2.2vw, 30px);margin:0 0 10px;line-height:1.15;letter-spacing:-.01em}
+  .blueprint .bp-sub{font-size:13.5px;color:#cfc6bd;max-width:380px;line-height:1.5}
+  .stream{margin-top:22px;flex:1;display:flex;flex-direction:column;gap:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#cdc4bb}
+  .stream .line{opacity:0;transform:translateY(4px);transition:opacity .35s ease,transform .35s ease;display:flex;gap:10px;align-items:flex-start;line-height:1.4}
+  .stream .line.show{opacity:1;transform:none}
+  .stream .line .tick{color:var(--gold);flex:0 0 auto}
+  .stream .line.good .tick{color:#7CC58A}
+  .stream .line.warn .tick{color:#E2A93A}
+  .bp-summary{margin-top:18px;border-top:1px solid #5a4f4a;padding-top:18px;display:none}
+  .bp-summary.show{display:block;animation:fade .5s both}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .bp-summary .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #5a4f4a;font-size:13px}
+  .bp-summary .row:last-child{border-bottom:none}
+  .bp-summary .row b{color:var(--gold);font-weight:500}
+  .next{margin-top:20px;display:none}.next.show{display:inline-flex}
+  .act3-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin:50px 0 24px;flex-wrap:wrap}
+  .act3-head .left .tag{font-family:Fraunces,serif;font-size:clamp(54px, 6.5vw, 96px);letter-spacing:-.02em;text-transform:none;color:var(--crimson);font-weight:500;margin-bottom:14px;line-height:1;font-style:italic}
+  .act3-head h2{font-family:Fraunces,serif;font-weight:400;font-size:clamp(24px, 2.8vw, 36px);line-height:1.15;margin:0;max-width:780px;letter-spacing:-.01em}
+  .act3-head h2 em{font-style:italic;color:var(--crimson)}
+  .pulse{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:12px;color:var(--ink-2)}
+  .pulse .led{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 rgba(63,122,78,.5);animation:led 1.4s infinite}
+  @keyframes led{0%{box-shadow:0 0 0 0 rgba(63,122,78,.5)}70%{box-shadow:0 0 0 8px rgba(63,122,78,0)}100%{box-shadow:0 0 0 0 rgba(63,122,78,0)}}
+  .agents{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px}
+  @media(max-width:1100px){.agents{grid-template-columns:repeat(2,1fr)}.act2-grid{grid-template-columns:1fr}}
+  .agent{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;position:relative;overflow:hidden;min-height:240px;transition:border-color .3s,transform .3s}
+  .agent.live{border-color:rgba(169,30,36,.35);transform:translateY(-2px);box-shadow:0 12px 28px -18px rgba(169,30,36,.25)}
+  .agent .ah{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .agent .ah .ic{width:32px;height:32px;border-radius:8px;background:var(--ink);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:16px}
+  .agent.live .ic{background:var(--crimson);color:#fff}
+  .agent .ah .name{font-family:Fraunces,serif;font-size:16px;line-height:1.1}
+  .agent .ah .status{margin-left:auto;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2)}
+  .agent.live .status{color:var(--good)}
+  .agent .feed{font-size:12px;line-height:1.45;color:var(--ink-2);min-height:110px}
+  .agent .feed .row{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line);opacity:0;transform:translateY(4px);transition:opacity .3s,transform .3s}
+  .agent .feed .row:last-child{border-bottom:none}
+  .agent .feed .row.show{opacity:1;transform:none}
+  .agent .feed .verb{font-weight:600;color:var(--ink);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;flex:0 0 44px}
+  .agent .feed .verb.buy{color:var(--crimson)}
+  .agent .feed .verb.book{color:var(--gold)}
+  .agent .ftr{position:absolute;left:16px;right:16px;bottom:12px;display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-2);letter-spacing:.06em}
+  .agent .ftr b{color:var(--ink)}
+  .protocol{margin-top:32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px}
+  .kpi .k{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-2)}
+  .kpi .v{font-family:Fraunces,serif;font-size:32px;color:var(--ink);margin-top:6px;line-height:1}
+  .kpi .v em{font-style:normal;color:var(--crimson)}
+  .kpi .d{font-size:12px;color:var(--ink-2);margin-top:8px}
+  .datamoat{margin-top:60px;padding-top:46px;border-top:1px solid var(--line)}
+  .dm-head{margin-bottom:32px}
+  .dm-tag{font-family:Fraunces,serif;font-size:clamp(54px, 6.5vw, 96px);letter-spacing:-.02em;text-transform:none;color:var(--crimson);font-weight:500;margin-bottom:14px;line-height:1;font-style:italic}
+  .dm-head h2{font-family:Fraunces,serif;font-weight:400;font-size:40px;line-height:1.06;margin:0;max-width:920px;letter-spacing:-.018em}
+  .dm-head h2 em{font-style:italic;color:var(--crimson)}
+  .dm-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:start}
+  @media(max-width:1100px){.dm-grid{grid-template-columns:1fr}}
+  .fw-stage{position:relative;aspect-ratio:1/1;max-width:560px;width:100%;margin:0 auto}
+  .fw-orbit{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+  .fw-orbit .arc{opacity:.55;transition:opacity .3s,stroke .3s,stroke-width .3s}
+  .fw-orbit .arc.active{opacity:1;stroke:var(--crimson);stroke-width:2.5}
+  .hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:132px;height:132px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#c8262c,var(--crimson));color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-shadow:0 0 0 0 rgba(169,30,36,.5);animation:hubPulse 2.6s ease-in-out infinite;z-index:2}
+  @keyframes hubPulse{0%,100%{box-shadow:0 0 0 0 rgba(169,30,36,.45)}50%{box-shadow:0 0 0 22px rgba(169,30,36,0)}}
+  .hub-lbl{font:700 12px Inter;letter-spacing:.18em;text-transform:uppercase}
+  .hub-sub{font-family:Fraunces,serif;font-style:italic;font-size:13px;margin-top:5px;color:#ffe4cc}
+  .fw-node{position:absolute;transform:translate(-50%,-50%);width:200px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;box-shadow:0 10px 22px -16px rgba(60,56,54,.3);transition:transform .4s,box-shadow .4s,border-color .4s;z-index:3}
+  .fw-node.active{border-color:var(--crimson);transform:translate(-50%,-50%) scale(1.07);box-shadow:0 22px 42px -18px rgba(169,30,36,.5);z-index:6}
+  .fw-node .nh{font:600 11.5px Inter;color:var(--ink);display:flex;align-items:center;gap:7px;margin-bottom:5px;line-height:1.2}
+  .fw-node.active .nh{color:var(--crimson)}
+  .fw-node .nh .ni{color:var(--crimson);font-size:13px;width:14px;flex:0 0 auto}
+  .fw-node .nd{font-size:10.5px;color:var(--ink-2);line-height:1.4}
+  .fw-node .nd strong{color:var(--crimson);font-weight:700;letter-spacing:.04em;font-size:10px}
+  .acc-stage{display:flex;flex-direction:column;gap:8px}
+  .acc-head h3{font-family:Fraunces,serif;font-weight:500;font-size:24px;margin:0 0 6px;color:var(--crimson)}
+  .acc-head p{font-size:13.5px;color:var(--ink-2);line-height:1.55;margin:0;max-width:480px}
+  .acc-head p strong{color:var(--crimson);font-weight:600}
+  .acc-head p .pd{color:var(--crimson);font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+  .bars{display:flex;align-items:flex-end;gap:22px;height:240px;padding:54px 0 0;border-bottom:2px solid var(--ink);position:relative;margin-top:28px}
+  .bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative}
+  .bar-fill{width:64%;background:#e8e2d6;border-radius:6px 6px 0 0;height:0%;transition:height 1.6s cubic-bezier(.2,.6,.1,1)}
+  .bar:nth-child(1) .bar-fill{background:#e8e2d6}
+  .bar:nth-child(2) .bar-fill{background:#c8c0b1}
+  .bar:nth-child(3) .bar-fill{background:linear-gradient(180deg,#d63a40,var(--crimson));box-shadow:0 0 22px -8px rgba(169,30,36,.45)}
+  .bar:nth-child(4) .bar-fill{background:linear-gradient(180deg,#c8262c,var(--crimson));box-shadow:0 0 30px -6px rgba(169,30,36,.6)}
+  .bar-lbl{position:absolute;top:-48px;left:0;right:0;text-align:center}
+  .bar-lbl b{display:block;font:700 11px Inter;letter-spacing:.06em;color:var(--ink)}
+  .bar-lbl span{font-family:Fraunces,serif;font-style:italic;font-size:12px;color:var(--ink-2);display:block;margin-top:2px}
+  .bar.last .bar-lbl b{color:var(--crimson)}.bar.last .bar-lbl span{color:var(--crimson)}
+  .bar:nth-child(3) .bar-lbl b{color:var(--crimson);font-weight:800}
+  .bar:nth-child(3) .bar-lbl span{color:var(--crimson);font-weight:600;font-style:italic}
+  .acc-cta{background:var(--ink);color:#fff;border-radius:12px;padding:18px 20px;margin-top:34px}
+  .cta-k{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);font-weight:600}
+  .cta-v{font-family:Fraunces,serif;font-size:21px;margin-top:5px;letter-spacing:-.01em;line-height:1.2}
+  .cta-d{font-size:12.5px;color:#cdc4bb;margin-top:8px;line-height:1.55}
+  .cta-d strong{color:#fff;font-weight:600}
+  .footer{margin-top:50px;display:flex;justify-content:space-between;align-items:center;gap:18px;font-size:11px;color:var(--ink-2);letter-spacing:.16em;text-transform:uppercase;border-top:1px solid var(--line);padding-top:18px;flex-wrap:wrap}
+  .footer .replay{cursor:pointer;color:var(--crimson);font-weight:600}
+  .footer .replay:hover{text-decoration:underline}
+  .handoff{display:grid;grid-template-columns:1fr 84px 1fr;gap:18px;margin:18px auto 0;max-width:920px;text-align:left;align-items:stretch}
+  .h-arrow{display:flex;align-items:center;justify-content:center}
+  .h-arrow svg{width:100%;max-width:80px;animation:arrowNudge 1.8s ease-in-out infinite}
+  @keyframes arrowNudge{0%,100%{transform:translateX(-4px)}50%{transform:translateX(4px)}}
+  @media(max-width:720px){.handoff{grid-template-columns:1fr}.h-arrow svg{transform:rotate(90deg)}}
+  .handoff .h-col{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .handoff .h-col.dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .handoff .h-col .tag{font-family:Fraunces,serif;font-style:italic;font-size:clamp(28px, 3.6vw, 48px);font-weight:500;letter-spacing:-.015em;text-transform:none;color:var(--ink);margin-bottom:14px;line-height:1.05}
+  .handoff .h-col.dark .tag{color:var(--gold)}
+  .handoff .h-col .v{font-family:Fraunces,serif;font-size:42px;line-height:1;margin-bottom:6px}
+  .handoff .h-col.dark .v em{color:var(--gold);font-style:italic}
+  .handoff .h-col .d{font-size:13px;color:var(--ink-2);line-height:1.5}
+  .handoff .h-col.dark .d{color:#cfc6bd}
+</style>
+</head>
+<body class="chaos-mode">
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> tellory</div>
+  <div class="phases">
+    <div class="phase" data-p="peri">Perimenopause <em>4 yrs</em></div>
+    <div class="phase" data-p="meno">Menopause <em>1 yr</em></div>
+    <div class="phase" data-p="post">Postmenopause <em>30 yrs</em></div>
+  </div>
+  <div class="seg">
+    <div class="s" data-seg="1">1 &middot; The Problem</div>
+    <div class="s" data-seg="2">2 &middot; Longevity Blueprint</div>
+    <div class="s" data-seg="3">3 &middot; The 8 Agents</div>
+  </div>
+  <div class="controls">
+    <div class="speed" id="speed"><b data-s="1">1x</b><b data-s="2">2x</b><b data-s="4" class="on">4x</b></div>
+    <button class="btn ghost" id="pauseBtn">Pause</button>
+    <button class="btn" id="replayBtn">Replay</button>
+  </div>
+</div>
+<section id="act1" class="act on">
+  <div class="stage" id="stage">
+    <div class="hud"><div class="hours-card"><div class="label">Hours she has spent &middot; alone</div><div class="big"><span id="hrs">0</span><span class="h">hrs</span></div><div class="sub">Across <b>8 dimensions</b> &middot; across <b id="phaseLbl">Perimenopause</b></div></div></div>
+    <div class="domains"><h4>The Eight Dimensions of Menopause</h4>
+      <div class="dom" data-d="hormones"><span class="ic">&#9784;</span><span class="lbl">Hormones</span><span class="bar"><i></i></span><span class="n">0h</span></div>
+      <div class="dom" data-d="surgery"><span class="ic">&#9876;</span><span class="lbl">Surgery</span><span class="bar"><i></i></span><span class="n">0h</span></div>
+      <div class="dom" data-d="longevity"><span class="ic">&#129508;</span><span class="lbl">Longevity</span><span class="bar"><i></i></span><span class="n">0h</span></div>
+      <div class="dom" data-d="sexual"><span class="ic">&#9829;</span><span class="lbl">Sexual Health</span><span class="bar"><i></i></span><span class="n">0h</span></div>
+      <div class="dom" data-d="weight"><span class="ic">&#127947;</span><span class="lbl">Weight &amp; Fitness</span><span class="bar"><i></i></span><span class="n">0h</span></div>
+      <div class="dom" data-d="mood"><span class="ic">&#129504;</span><span class="lbl">Mindset &amp; Mood</span><span class="bar"><i></i></span><span class="n">0h</span></div>
+      <div class="dom" data-d="skin"><span class="ic">&#10024;</span><span class="lbl">Skincare</span><span class="bar"><i></i></span><span class="n">0h</span></div>
+      <div class="dom" data-d="hair"><span class="ic">&#10052;</span><span class="lbl">Hair</span><span class="bar"><i></i></span><span class="n">0h</span></div>
+    </div>
+    <div class="phaseFlash" id="phaseFlash"></div>
+    <div class="hint" id="hint">
+      <div class="eyebrow">The Problem</div>
+      <div class="bigtitle-pre">Women spend</div>
+      <div class="bignum"><span class="n">~864</span><span class="u">hrs</span></div>
+      <div class="bigsub">trying to manually build their own Full-Stack Protocol across all stages of menopause.</div>
+      <button class="big-btn" id="startBtn">Show me the chaos <span class="arr">&rarr;</span></button>
+    </div>
+    <div class="reveal" id="reveal"><div class="box">
+      <div class="pre">If she ever makes it this far on her own</div>
+      <h2><em>864</em> hours</h2>
+      <div class="unit">Of solo searching, booking, second-guessing</div>
+      <div class="breakdown">
+        <div class="b"><div class="ph">Perimenopause &middot; 4 yrs</div><div class="v">211 <span style="font-size:14px;color:#cdc4bb">hrs</span></div><div class="d">67 in waiting rooms &middot; 144 in tabs</div></div>
+        <div class="b"><div class="ph">Menopause &middot; 1 yr</div><div class="v">53 <span style="font-size:14px;color:#cdc4bb">hrs</span></div><div class="d">17 in clinic &middot; 36 in research</div></div>
+        <div class="b"><div class="ph">Postmenopause &middot; 30 yrs</div><div class="v">600 <span style="font-size:14px;color:#cdc4bb">hrs</span></div><div class="d">240 in clinic &middot; 360 in research</div></div>
+      </div>
+      <div class="equiv">That is <b>108 eight-hour workdays</b>. <b>21 work weeks</b>. <b>Five full months</b> of her life spent piecing together a protocol no one platform delivers. Across <b>8 dimensions</b>. Today, there are <b>0 platforms</b> that solve this for her.</div>
+      <div class="actions">
+        <button class="btn ghost" style="border-color:#cdc4bb;color:#cdc4bb" id="replay2">Replay the chaos</button>
+        <button class="btn" id="solBtn">The Solution <span style="margin-left:8px">&rarr;</span></button>
+      </div>
+    </div></div>
+  </div>
+  <div class="scrubber">
+    <div class="label">Her timeline</div>
+    <div class="track"><div class="rail"></div><div class="fill" id="fill"></div>
+      <div class="mark" style="left:0%" data-l="Year 0"></div>
+      <div class="mark" id="mPeri" style="left:11.4%" data-l="4 yrs &middot; 211h"></div>
+      <div class="mark" id="mMeno" style="left:14.3%" data-l="5 yrs &middot; 264h"></div>
+      <div class="mark" id="mPost" style="left:100%" data-l="35 yrs &middot; 864h"></div>
+    </div>
+    <div class="yrs" id="yrs">Year 0 of 35</div>
+  </div>
+</section>
+<section id="act2" class="act"><div class="solwrap">
+  <div class="interstitial">
+    <div class="eyebrow">The Solution</div>
+    <h1>From 864 hours, to one continuously optimized <em>Longevity Blueprint</em>.</h1>
+    <div class="handoff">
+      <div class="h-col"><div class="tag">Before Tellory</div><div class="v" style="color:var(--crimson)">864 hrs</div><div class="d">Solo across 8 dimensions, with 0 platforms delivering a full-stack protocol.</div></div>
+      <div class="h-arrow" aria-hidden="true">
+        <svg viewBox="0 0 80 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="haHead" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+              <path d="M0,0 L12,6 L0,12 z" fill="#A91E24"/>
+            </marker>
+          </defs>
+          <line x1="4" y1="20" x2="74" y2="20" stroke="#A91E24" stroke-width="3" stroke-linecap="round" marker-end="url(#haHead)"/>
+        </svg>
+      </div>
+      <div class="h-col dark"><div class="tag">After Tellory</div><div class="v"><em>~20 min</em></div><div class="d">Two minutes of intake. The engine builds the protocol, books the providers, orders the products, and learns from every outcome.</div></div>
+    </div>
+  </div>
+  <div class="act2-grid">
+    <div class="panel">
+      <div class="ph2-tag">Step 1 &middot; Quick Intake</div>
+      <h2>Meet Sarah.</h2>
+      <p style="margin:0;color:var(--ink-2);font-size:14px;line-height:1.5">Two minutes of intake. The Tellory intelligence engine will combine her data with clinical data to deliver the full-stack protocol.</p>
+      <div class="field"><label>Name</label><input type="text" id="name" value="Sarah Mitchell" /></div>
+      <div class="field"><label>Age</label><div class="age-row"><input type="range" id="age" min="38" max="62" value="47" /><div class="age-pill" id="agev">47</div></div></div>
+      <div class="field"><label>Top symptoms (tap any)</label><div class="chips" id="symps">
+        <div class="chip on">Hot flashes</div><div class="chip on">Sleep loss</div><div class="chip">Weight gain</div>
+        <div class="chip on">Brain fog</div><div class="chip">Low libido</div><div class="chip">Joint pain</div>
+        <div class="chip on">Skin aging</div><div class="chip">Hair thinning</div><div class="chip">Mood swings</div><div class="chip">Anxiety</div>
+      </div></div>
+      <div class="field"><label>Longevity goal</label><div class="chips">
+        <div class="chip on">Daily energy</div><div class="chip">Cognitive longevity</div><div class="chip on">Body composition</div><div class="chip">Aesthetic aging</div>
+      </div></div>
+      <button class="gen-btn" id="gen">Generate longevity blueprint</button>
+    </div>
+    <div class="blueprint">
+      <h3>Tellory Intelligence Engine Delivers a Personalized, Optimized, Intelligent &amp; AI-powered Longevity Blueprint</h3>
+      <p class="bp-sub">The intelligence layer ingests her biology, symptoms, labs, and goals, cross-references current clinical literature, and synthesizes a single, coherent protocol.</p>
+      <div class="stream" id="stream"></div>
+      <div class="bp-summary" id="bpsum"></div>
+      <button class="big-btn next" id="nextBtn">Deploy 8 agents <span class="arr">&rarr;</span></button>
+    </div>
+  </div>
+</div></section>
+<section id="act3" class="act"><div class="solwrap">
+  <div class="act3-head">
+    <div class="left"><div class="tag">Tellory Orchestration Layer</div><h2>Eight agents. <em>One protocol.</em> Buying and booking on her behalf as her personal concierge.</h2></div>
+    <div class="pulse"><span class="led"></span> 8 agents online &middot; executing for <b style="margin-left:4px" id="forwho">Sarah</b></div>
+  </div>
+  <div class="agents" id="agents"></div>
+  <div class="protocol">
+    <div class="kpi"><div class="k">Protocol Items Active</div><div class="v" id="kp-items"><em>0</em></div><div class="d">Across 8 dimensions, updated continuously</div></div>
+    <div class="kpi"><div class="k">Hours Saved (vs. solo)</div><div class="v" id="kp-hrs"><em>0</em></div><div class="d">Compared to 864 hours of self-built protocol</div></div>
+    <div class="kpi"><div class="k">Outcomes Feeding the Engine</div><div class="v" id="kp-out"><em>0</em></div><div class="d">Every result tightens the next recommendation</div></div>
+  </div>
+  <section class="datamoat">
+    <div class="dm-head">
+      <div class="dm-tag">The Data Moat</div>
+      <h2>Compounding Data Flywheel. <em>Closed-loop, dimension-specific, agentic system of action.</em></h2>
+    </div>
+    <div class="dm-grid">
+      <div class="fw-stage" id="fwStage">
+        <svg class="fw-orbit" viewBox="0 0 480 480" aria-hidden="true">
+          <defs><marker id="arrh" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#A91E24"/></marker></defs>
+          <circle cx="240" cy="240" r="178" fill="none" stroke="#E5DED2" stroke-width="1.5" stroke-dasharray="3 7"/>
+          <path class="arc a1" d="M 326 90 A 178 178 0 0 1 418 280" fill="none" stroke="#cdb38a" stroke-width="2" marker-end="url(#arrh)"/>
+          <path class="arc a2" d="M 410 326 A 178 178 0 0 1 282 412" fill="none" stroke="#cdb38a" stroke-width="2" marker-end="url(#arrh)"/>
+          <path class="arc a3" d="M 220 416 A 178 178 0 0 1 70 326" fill="none" stroke="#cdb38a" stroke-width="2" marker-end="url(#arrh)"/>
+          <path class="arc a4" d="M 62 280 A 178 178 0 0 1 154 90" fill="none" stroke="#cdb38a" stroke-width="2" marker-end="url(#arrh)"/>
+          <path class="arc a5" d="M 195 70 A 178 178 0 0 1 285 70" fill="none" stroke="#cdb38a" stroke-width="2" marker-end="url(#arrh)"/>
+        </svg>
+        <div class="hub"><div class="hub-lbl">COMPOUNDING</div><div class="hub-sub">Predictability</div></div>
+        <div class="fw-node n1" style="left:50%;top:13%"><div class="nh"><span class="ni">&#9112;</span>She shares</div><div class="nd">labs &middot; wearables &middot; symptoms &middot; outcomes</div></div>
+        <div class="fw-node n2" style="left:85%;top:38%"><div class="nh"><span class="ni">&#9881;</span>AI Learns in RT</div><div class="nd">Pattern recognition across dimensions, cross-category correlations, market advancements, all combined with her data.</div></div>
+        <div class="fw-node n3" style="left:72%;top:84%"><div class="nh"><span class="ni">&#9826;</span>Delivers full-stack protocol optimization in RT</div><div class="nd">Refines and updates with each new data point. <strong>90+ days, this becomes PREDICTIVE.</strong></div></div>
+        <div class="fw-node n4" style="left:28%;top:84%"><div class="nh"><span class="ni">&#9881;</span>Agentic Doers execute</div><div class="nd">The protocol throughout the year (purchasing and behavioral data).</div></div>
+        <div class="fw-node n5" style="left:15%;top:38%"><div class="nh"><span class="ni">&#9829;</span>She returns</div><div class="nd">Results &rarr; changes &rarr; latest labs, new symptoms &rarr; new biomarkers &rarr; clarifying questions.</div></div>
+      </div>
+      <div class="acc-stage">
+        <div class="acc-head"><h3>Compounding Predictability</h3><p>Her protocol's <span class="pd">predictive depth</span> grows exponentially. The longer she uses Tellory, the <strong>harder it is to leave</strong>.</p></div>
+        <div class="bars" id="bars">
+          <div class="bar"><div class="bar-lbl"><b>DAY 1</b><span>Baseline</span></div><div class="bar-fill" data-h="8" data-delay="300"></div></div>
+          <div class="bar"><div class="bar-lbl"><b>30 DAYS</b><span>Personalized</span></div><div class="bar-fill" data-h="22" data-delay="900"></div></div>
+          <div class="bar"><div class="bar-lbl"><b>90 DAYS</b><span>Predictive</span></div><div class="bar-fill" data-h="48" data-delay="1600"></div></div>
+          <div class="bar last"><div class="bar-lbl"><b>1 YEAR+</b><span>Irreplaceable</span></div><div class="bar-fill" data-h="95" data-delay="2400"></div></div>
+        </div>
+        <div class="acc-cta">
+          <div class="cta-k">The Switching Cost</div>
+          <div class="cta-v">365 days of her biology, outcomes, and behavior.</div>
+          <div class="cta-d">No competing platform can rebuild this from scratch. Every new data point compounds her protocol's accuracy and her cost to leave. <strong>That is the moat.</strong></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="footer"><span>Tellory &middot; The Longevity Engine for Women in Midlife</span><span class="replay" id="replay3">&#8634; Replay from start</span></div>
+</div></section>
+<script src="/Tellory_Demo_Full.js"></script>
+</body>
+</html>
