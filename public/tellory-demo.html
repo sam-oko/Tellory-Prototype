@@ -587,6 +587,22 @@
     .progress{flex-wrap:wrap; gap:8px}
     .pstep{min-width:30%}
     .pstep .plabel{font-size:9px}
+
+    /* dense in-device screens were built for a wide landscape canvas.
+       let them scroll vertically inside the phone so nothing is clipped */
+    .scr{overflow-y:auto; -webkit-overflow-scrolling:touch}
+
+    /* "hours saved" band: let the big number, label and mini-stats wrap */
+    .kpis{flex-wrap:wrap; gap:12px}
+    .kh-mini{margin-left:0; gap:24px}
+
+    /* 8 AI agents: 2 columns instead of 4 so each card stays readable */
+    #agents{grid-template-columns:repeat(2,1fr); grid-template-rows:none; gap:8px}
+    .agent{min-height:118px}
+
+    /* data moat: stack the flywheel above the chart so labels don't overlap */
+    .moat-grid{grid-template-columns:1fr; gap:16px; align-items:start}
+    .fw{width:min(62vw,230px)}
   }
 
 </style>
